@@ -1,0 +1,115 @@
+import java.lang.StringBuilder;
+
+public class Block {
+	protected final int myRow; // row of block's top-left position
+	protected final int myCol; // column of block's top-left position
+	protected final int myHeight; // height of block
+	protected final int myWidth; // width of block
+	
+	// toString representation
+	protected final String myID;
+	protected final int myHash;
+	
+	
+		
+	/**
+	 * Initialize a Block object with all attributes set to defaults
+	 */
+	
+	/**
+	 * Initialize a copy of a Block object setting the new Block's
+	 * attributes to the original one's.
+	 * 
+	 * @param copy
+	 * 							the Block to be copied
+	 */
+	public Block(Block copy) {
+		
+		myRow = copy.myRow;
+		myCol = copy.myCol;
+		myHeight = copy.myHeight;
+		myWidth = copy.myWidth;	
+		myID = copy.myID;
+		myHash = myID.hashCode();
+	}
+	
+	/**
+	 * Initialize a new Block object of a given height and width
+	 * and set at the given row, column.
+	 * 
+	 * @param height
+	 * 							the height of the new Block
+	 * @param width
+	 * 							the width of the new Block
+	 * @param row
+	 * 							the row which the new Block's upper left corner will be placed at
+	 * @param col
+	 * 							the column which the new Block's upper left corner will be placed at
+	 */
+	public Block (int height, int width, int row, int col) {
+		myRow = row;
+		myCol = col;
+		myHeight = height;
+		myWidth = width;
+
+		// Create new empty StringBuilder
+		StringBuilder blockInfo = new StringBuilder();
+		// Append each attribute into the StringBuilder
+		blockInfo.append(myHeight);
+		blockInfo.append(" ");
+		blockInfo.append(myWidth);
+		blockInfo.append(" ");
+		blockInfo.append(myRow);
+		blockInfo.append(" ");
+		blockInfo.append(myCol);
+		// Return String representation of data in the StringBuilder
+		myID = blockInfo.toString();
+		myHash = myID.hashCode();
+	}
+
+	/**
+	 * Creates and returns a String representation of a Block. The String is 
+	 * comprised of each of the Block's attributes. Uses the StringBuilder
+	 * class and appends each attribute and returns using StringBuilder.toString()
+	 * 
+	 * Example: "5 6 7 8" represents a Block with height of 5, 
+	 * 			width of 6 located at row 7, column 8
+	 */
+	@Override
+	public String toString() {
+		return myID;
+	}
+	
+	/**
+	 * Returns the hashCode of a Block by turning it into a String and using
+	 * the String.hashCode()
+	 */
+	@Override
+	public int hashCode() {
+		return myHash;
+	}
+	
+	
+	/**
+	 * Returns true if this Block object equals another Block by comparing hashCodes.
+	 * In other words, they have the same dimension and position.
+	 * 
+	 * @param otherBlock
+	 * 							the Block to be compared to
+	 */
+	@Override
+	public boolean equals(Object otherBlock) {
+		return this.myID.equals(otherBlock.toString());
+	}
+	
+	public boolean occupiesPosition(int row, int col){
+		if (col >= this.myCol && col < this.myCol + this.myWidth
+				&& row >= this.myRow && row < this.myRow + this.myHeight) {
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+	
+}

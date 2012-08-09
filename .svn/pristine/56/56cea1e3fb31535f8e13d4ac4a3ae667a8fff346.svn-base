@@ -1,0 +1,171 @@
+import static org.junit.Assert.*;
+
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+
+public class TrayTest {
+
+	@Test
+	public void testInitialize() {
+		Tray t1= new Tray();
+		assertEquals(t1.myBlocks().size(),0);
+		Tray t2= new Tray(4,5);
+		assertEquals(t2.myBlockLocations().length,5);
+		//Check that a new tray labels all cells false.
+		for (int r=0;r<t1.trayHeight; r++) {
+			for (int c=0; c<t1.trayWidth; c++) {
+				assertEquals(t2.myBlockLocations()[r][c],false);
+			}
+		}
+	}
+	/*
+	@Test
+	public void testConstructor() {
+		Tray t1 = new Tray(5, 5);
+		t1.myBlockLocations = new boolean [5] [5];
+		Tray t2 = new Tray(t1);
+		assertEquals(t2.myBlocks().size(), 0);
+		assertFalse(t2.myBlockLocations()[0][4]);
+	}
+	*/
+	@Test
+	public void testaddBlock() {
+		Tray t2= new Tray(4,5);
+		Block b1= new Block(2,1,0,0);
+		t2.addBlock(b1);
+		// Check that when adding a block, myBlocks is updated correctly:
+		assertEquals(t2.myBlocks().size(),1);
+		assertEquals(t2.myBlocks().get(0),b1);
+		// Check that when adding a block, myBlockLocations is updated correctly:
+		for (int r=0;r<t2.trayHeight; r++) {
+			for (int c=0; c<t2.trayWidth; c++) {
+				if ((r==0 && c==0) || (r==1) && (c==0)) {
+					assertEquals(t2.myBlockLocations()[r][c],true);
+				} else {
+					assertEquals(t2.myBlockLocations()[r][c],false);
+				}
+			}
+		}
+		// Test that addBlock method catches violations of isOK method.
+	}
+	
+	
+	// Helpers to test what testprintMove prints out
+	private final ByteArrayOutputStream testPrint = new ByteArrayOutputStream();
+	private final ByteArrayOutputStream testErr = new ByteArrayOutputStream();
+	private PrintStream original = System.out;
+	
+	/*
+	@Before
+	public void setUpStreams() {
+	    System.setOut(new PrintStream(testPrint));
+	    System.setErr(new PrintStream(testErr));
+	}
+	*/
+	@Test
+	public void testprintMove() {
+		Tray t1= new Tray(4,5);
+		Tray t2= new Tray(4,5);
+		Block b1= new Block(2,1,0,0);
+		Block b2= new Block(2,1,0,1);
+		t1.addBlock(b1);
+		t2.addBlock(b2);
+		Tray.printMove(t1, t2, false);
+		
+		
+		assertEquals("0 0 0 1", testPrint.toString());
+	}
+	/*
+	@After
+	public void takeDownStreams() {
+		System.setOut(original);
+	}
+	*/
+	@Test
+	public void testcommentGenerator() {
+		Tray t1= new Tray(4,5);
+		Tray t2= new Tray(4,5);
+		Block b1= new Block(2,1,0,0);
+		Block b2= new Block(2,1,0,1);
+		t1.addBlock(b1);
+		t2.addBlock(b2);
+		Tray.printMove(t1, t2, true);
+		assertEquals("0 0 0 1    move the 2 x 1 block 1 space(s) to the left.", testPrint.toString());
+		
+		// Add test when blocks are not equal
+		
+	}
+	
+	@Test
+	public void testcontainsBlock() {
+		Tray t1= new Tray(4,5);
+		Block b1= new Block(2,2,3,2);
+		assertFalse(t1.containsBlock(b1));
+		t1.addBlock(b1);
+		assertTrue(t1.containsBlock(b1));
+	}
+	
+	@Test
+	public void testcanMove() {
+		Tray t1 = new Tray(5, 5);
+		Block b1 = new Block(2,2,0,0);
+		t1.addBlock(b1);
+		
+		// Cannot move both horizontally and vertically at same time
+		assertFalse(t1.canMove(b1, 2, 2));
+		assertFalse(t1.canMove(b1, 3, 3));
+		assertFalse(t1.canMove(b1, 1, 2));
+		
+		// Can move single directionally if no block exists between current position and goal position
+		assertTrue(t1.canMove(b1, 0, 2));
+		assertTrue(t1.canMove(b1, 2, 0));
+		
+		
+		// move b1 into b2's row, col
+		Block b2 = new Block(1, 1, 2, 0);
+		t1.addBlock(b2);
+		assertFalse(t1.canMove(b1, b2.myRow, b2.myCol));
+		// move b2 into b1's row, col
+		assertFalse(t1.canMove(b2, b1.myRow, b1.myCol));
+		
+		// move b1 through b2 and to a new destination
+		assertFalse(t1.canMove(b1, 3, 0));
+		
+		
+		
+		
+		Tray t = new Tray(4, 3);
+		t.addBlock("1 2 0 0");
+		t.addBlock("1 2 0 2");
+		t.addBlock("1 2 2 0");
+		Block b = new Block(1, 2, 2, 2);
+		
+		t.addBlock(b);
+		// b's coordinates = 1 2 2 2
+		assertTrue(t.canMove(b, 1, 2));
+	}
+
+	/*
+	public ArrayList<Tray> findNextConfigurations() {
+	}
+	
+	public int hashCode() {
+
+	}
+	
+	public String toString() {
+	}
+	*/
+	@Test
+	public void isOK() {
+		Tray t1= new Tray(4,4);
+		assertTrue(t1.isOK());
+		
+	}
+	
+}

@@ -1,0 +1,496 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.lang.StringBuilder;
+
+/**
+ * A Tray represents the game Tray. It holds Block references in an ArrayList<Block> called
+ * myBlocks. Its width and height are represented by the instance variables trayWidth and
+ * trayHeight. The Tray class implements a HashMap that stores Blocks by their String signature.
+ * When a Block in myBlocks is moved, the Tray, rather than creating a new Block object each
+ * time, updates the Block reference in myBlocks to another Block in blockCache that 
+ * represents the Block at the desired position.
+ * 
+ *
+ */
+public class Tray {
+
+	protected ArrayList<Block> myBlocks;
+	public final int trayWidth;
+	public final int trayHeight;
+	
+	private static HashMap<String, Block> blockCache = new HashMap<String, Block>();
+
+	/** 
+	 * Tray constructor which takes no arguments
+	 * Creates an empty tray with Width and Height == 0
+	 * and an empty ArrayList of Blocks
+	 */
+	public Tray() {
+		myBlocks = new ArrayList<Block>();
+		trayWidth = 0;
+		trayHeight = 0;
+	}
+
+
+	/** 
+	 * Tray constructor which copies a given Tray
+	 * 
+	 * @param copy
+	 * 							Tray to be copied
+	 */
+	public Tray(Tray copy) {
+		
+		trayWidth = copy.trayWidth;
+		trayHeight = copy.trayHeight;
+		
+		myBlocks = new ArrayList<Block>();
+		
+		// Copy every reference in copy.myBlock to myBlock.
+		
+		for (Block block: copy.myBlocks) {
+			if (blockCache.containsKey(block.mySignature)) {
+				myBlocks.add(block);
+			}
+			else {
+				
+				// Create a new Block and place it in blockCache
+				// if the new Block does not exist already in myBlock.
+				Block newBlock = new Block(block);
+				blockCache.put(newBlock.mySignature, newBlock);
+				
+				// Add desired Block reference to myBlocks.
+				myBlocks.add(newBlock);
+			}
+		}
+	}
+	
+	/** 
+	 * Tray constructor which makes a new tray of height, width size
+	 * and ArrayList of Blocks and 2D boolean array of locations
+	 * 
+	 * @param width
+	 * 							the width of the constructed tray
+	 * @param height
+	 * 							the height of the constructed tray
+	 */
+	public Tray(int width, int height) {
+		myBlocks = new ArrayList<Block>();
+		trayWidth = width;
+		trayHeight = height;
+
+	}
+
+
+	/** 
+	 * Method that adds a Block to this Tray given a String numbers, which contains
+	 * the signature of the Block. If blockCache contains a Block with the given signature,
+	 * add a new reference to the existing Block in myBlocks. Else, parse the signature for each
+	 * Block characteristic and adds the new corresponding Block to blockCache. Then add a new reference
+	 * to the new Block in myBlocks by calling addBlock(Block).
+	 * addBlock method.
+	 * 
+	 * @param signature
+	 * 							the String signature of a Block to be added to the tray
+	 */
+	public void addBlock(String signature) {
+		// If the desired Block exists in blockCache, add
+		// a reference to that Block in myBlocks
+		if (blockCache.containsKey(signature)) {
+			addBlock(blockCache.get(signature));
+		}
+		else {
+			
+			// Parse the signature for the desired Block characteristics.
+			String [] num = signature.split(" ");
+			int h = Integer.parseInt(num[0]);
+			int w = Integer.parseInt(num[1]);
+			int r = Integer.parseInt(num[2]);
+			int c = Integer.parseInt(num[3]);
+			
+			// Create the new desired Block and place it in blockCache.
+			Block newBlock = new Block(h,w,r,c);
+			blockCache.put(newBlock.mySignature, newBlock);
+			
+			// Add a reference to the new Block in myBlocks by calling addBlock(Block).
+			addBlock(newBlock);
+		}
+	}
+
+
+	/** 
+	 * Method that adds Blocks to a tray given a Block. Then checks if tray is a valid Tray.
+	 * If the desired block already exists in blockCache, then create a new reference in
+	 * myBlocks to that block. Else, create a new block and place it in blockCache. Then create
+	 * a new reference in myBlocks to the new block in blockCache.
+	 * 
+	 * 
+	 * @param block
+	 * 							a Block to be added to the tray
+	 */
+	public void addBlock(Block block) {
+		//Adds a block to this Tray
+		
+		// Check if block exists in blockCache.
+		if (!blockCache.containsKey(block.mySignature)) {
+			blockCache.put(block.mySignature, block);
+		}
+		
+		// Add a reference in myBlocks to the block
+		myBlocks.add(block);
+		
+		// The Tray must be a valid Tray after adding a block.
+		if (!this.isOK()) {
+			throw new IllegalArgumentException("A Block already exists at " + block.myRow + " " + block.myCol);
+		}
+	}
+
+	/** 
+	 * Method that prints the move as tray moves from one configuration to the next.
+	 * Assumes both trays have the same Height and Width and only one block was moved.
+	 * 
+	 * @param past
+	 * 							tray configuration before the move
+	 * @param present
+	 * 							tray configuration after the move
+	 * @param debugBlockFull
+	 * 							helper argument that shows where the block moved from to where it moved to
+	 */
+	public static void printMove(Tray past, Tray present, boolean debugBlockFull) {
+		// Trays compared must have an equal number of blocks at all times
+		if (past.numBlocks() !=  present.numBlocks()) {
+			System.err.println("Uh oh, something went wrong...");
+			System.err.println("Invalid Trays do not have same number of blocks.");
+			System.exit(0);
+		}
+		else {
+			for (int x = 0; x < past.numBlocks(); x ++) {
+				Block pastBlock = past.myBlocks.get(x);
+				Block presentBlock = present.myBlocks.get(x);
+				
+				// Find the Block that was moved.
+				if (!pastBlock.equals(presentBlock) && pastBlock.myHeight == presentBlock.myHeight
+						&& pastBlock.myWidth == presentBlock.myWidth) {
+					
+					// Build a comment containing information about the past position and the present position.
+					StringBuilder printedMoves = new StringBuilder();
+					printedMoves.append(pastBlock.myRow);
+					printedMoves.append(" ");
+					printedMoves.append(pastBlock.myCol);
+					printedMoves.append(" ");
+					printedMoves.append(presentBlock.myRow);
+					printedMoves.append(" ");
+					printedMoves.append(presentBlock.myCol);
+					
+					// If debugBlockFull mode or commentate mode is on, add comments in addition to the move.
+					if (debugBlockFull) {
+						System.out.println(printedMoves.toString() + commentGenerator(pastBlock, presentBlock));
+					} else {
+						System.out.println(printedMoves.toString());
+					}
+					return;
+				}
+			}
+			
+		}
+	}
+	
+	/** 
+	 * Method that prints to move made by a specific Block
+	 * 
+	 * @param pastBlock
+	 * 							the moved Block in its old position
+	 * @param presentBlock
+	 * 							the moved Block in its new position
+	 */
+	private static String commentGenerator(Block pastBlock, Block presentBlock) {
+		// Ensure that the two Blocks have equal dimensions.
+		if (pastBlock.myHeight != presentBlock.myHeight || pastBlock.myWidth != presentBlock.myWidth) {
+			throw new IllegalArgumentException("Blocks are not equal dimension");
+		}
+		
+		// Generate a String describing the direction of the move.
+		String moveDirection = "";
+		if (pastBlock.myRow > presentBlock.myRow) {
+			moveDirection = pastBlock.myRow - presentBlock.myRow + " space(s) up.";
+		} else if (pastBlock.myRow < presentBlock.myRow) {
+			moveDirection = presentBlock.myRow - pastBlock.myRow + " space(s) down.";
+		} else if (pastBlock.myCol > presentBlock.myCol) {
+			moveDirection = pastBlock.myCol - presentBlock.myCol + " space(s) to the left.";
+		} else if (pastBlock.myCol < presentBlock.myCol) {
+			moveDirection = presentBlock.myCol - pastBlock.myCol + " space(s) to the right.";
+		}
+		
+		// Generate the full comment.
+		StringBuilder comment = new StringBuilder();
+		comment.append("    move the ");
+		comment.append(pastBlock.myHeight);
+		comment.append(" x ");
+		comment.append(pastBlock.myWidth);
+		comment.append(" block ");
+		comment.append(moveDirection);
+		return comment.toString();
+		
+	}
+	
+	/** 
+	 * Method that checks if the tray contains the block which satisfies goal
+	 * specifications by comparing the block hashCodes.
+	 * integer argument and calls Block constructor. Adds to myBlocks and changes
+	 * booleans in myBlockLocations.
+	 * 
+	 * @param otherBlock
+	 * 							Block which satisfies the puzzle goal
+	 */
+	public boolean containsBlock(Block otherBlock) {
+		//Returns true if this tray configuration satisfied the specifications of the goal.
+		for (Block block: myBlocks) {
+			if (block.equals(otherBlock)) {
+				return true;
+			} 
+		}
+		return false;
+	}
+	/** 
+	 * Method that adds checks if a block can move to a given row, col. If the row, col
+	 * are out of tray bounds, an error is thrown. Checks if there is a block at row, col
+	 * and if not, the block can move there.
+	 * 
+	 * @param block
+	 * 							Block to be checked if it can move into newRow, newCol
+	 * @param newRow
+	 * 							the new row that Block block can potentially move to
+	 * @param newCol
+	 * 							the new column that Block block can potentially move to
+	 */
+	public boolean canMove(Block block, int newRow, int newCol) {
+		// ***Invariant: a block will always be moved either vertically or horizontally, not both***
+		
+		// If block is moved out of bounds by dimension
+		if (newRow + block.myHeight > trayHeight || newCol + block.myWidth > trayWidth) {
+			
+			return false;
+		}
+		
+		else if (newRow < 0 || newCol < 0) {
+			return false;
+		}
+		
+		
+		// A block can only be moved either vertically or horizontally, not both. 
+		// Count number of axes on which block is moved.
+		int movingAxis = 0;
+		if (newRow == block.myRow) {
+			movingAxis ++;
+		}
+		if (newCol == block.myCol) {
+			movingAxis ++;
+		}
+		
+		// If requested to move on more than one axis or to current position
+		if (movingAxis != 1) {
+			
+			return false;
+		}
+		
+		
+		Tray hypothetical = new Tray(this);
+		
+		// Remove block from hypothetical, a copy of this Tray, so that the block's position
+		// will not be accounted for when checking if the block can move to the given coordinates on hypothetical.
+		hypothetical.myBlocks.remove(block);
+		
+		// False if desired spot is occupied
+		for (int row = newRow; row < newRow + block.myHeight; row ++) {
+			for (int col = newCol; col < newCol + block.myWidth; col ++) {
+				if (hypothetical.positionOccupied(row, col)) {
+					return false;
+				}
+			}
+		}
+		
+		return true;
+		
+	}
+	
+	
+	/** Method that returns the tray that results from moving Block b to position toRow, toCol.
+	 * Updates the boolean array as well as myBlocks. Assumes that block can move to toRow, toCol.
+	 * 
+	 * @param block
+	 * 								the Block which was moved to toRow, toCol
+	 * @param toRow
+	 * 								the row which block was moved to
+	 * @param toCol
+	 * 								the column which block was moved to
+	 * @return rtn
+	 * 								the new tray configuration with the moved block
+	 */
+	public Tray trayAfterMovedBlock(Block block, int toRow, int toCol) {
+		Tray rtn = new Tray(this);
+
+		// Change the position of block by referring its pointer to the correct block
+		// in blockCache
+		for (Block rtnBlock: rtn.myBlocks) {
+			if (rtnBlock.equals(block)) {
+				String newID = makeID(block.myHeight, block.myWidth, toRow, toCol);
+				if (!blockCache.containsKey(newID)) {
+					blockCache.put(newID, new Block(block.myHeight, block.myWidth, toRow, toCol));
+				} 
+				rtn.myBlocks.set(myBlocks.indexOf(block), blockCache.get(newID));
+				return rtn;
+			}
+		}
+
+		// Code should never reach here
+		System.err.print("Uh oh, something went wrong.");
+		System.exit(0);
+		return null;
+	}
+	
+	/**
+	 * Helper function for trayAfterMovedBlock which creates a new signature
+	 * for a block with the given information.
+	 * @param height
+	 * 							is the height of the block described by the signature
+	 * @param width
+	 * 							is the width of the block described by the signature
+	 * @param row
+	 * 							is the row of the block's top-left edge described by the signature
+	 * @param col
+	 * 							is the column of the block's top-left edge described by the signature
+	 * @return
+	 * 							a String which contains the signature of a block with the given parameters.
+	 */
+	private String makeID(int height, int width, int row, int col) {
+		StringBuilder blockInfo = new StringBuilder();
+		blockInfo.append(height);
+		blockInfo.append(" ");
+		blockInfo.append(width);
+		blockInfo.append(" ");
+		blockInfo.append(row);
+		blockInfo.append(" ");
+		blockInfo.append(col);
+		return blockInfo.toString();
+	}
+
+	
+	/** Method that returns an ArrayList containing all possible next moves. Checks if each block
+	 * can move up, down, left, or right by one block. If so, adds the resultant Tray to the list. If there
+	 * are no blocks in the tray, returns an empty ArrayList.
+	 * 
+	 * @return configurations
+	 * 								the ArrayList of Tray configurations of next possible moves
+	 */
+	public ArrayList<Tray> findNextConfigurations(boolean debugTrayFull) {
+
+		ArrayList<Tray> configurations = new ArrayList<Tray>();
+
+		// For each Block, if it can move one space up/down/left/right, then
+		// add the resultant Tray of that move to configurations
+		for (Block block: myBlocks) {
+			for (int row = block.myRow - 1; row <= block.myRow + 1; row ++) {
+				for (int col = block.myCol - 1; col <= block.myCol + 1; col ++) {
+					if (this.canMove(block, row, col)) {
+						if (debugTrayFull) {
+							System.out.println("Contemplating Block move from " + block.myRow + 
+									" " + block.myCol + " to " + row + " " + col);
+						}
+						configurations.add(trayAfterMovedBlock(block, row, col));
+					}
+				}
+			}
+		}
+		
+		return configurations;	
+	}
+
+	/** 
+	 * Calculates hashCode of the tray using String.hashCode
+	 */
+	@Override
+	public int hashCode() {
+		return this.toString().hashCode();
+	}
+
+	/** 
+	 * Converts a tray to a string using a StringBuilder by making a large String
+	 * of String representations of Blocks. 
+	 */
+	@Override
+	public String toString() {
+		StringBuilder strTray = new StringBuilder();
+		for (Block block : myBlocks) {
+			strTray.append(block.mySignature);
+		}
+		return strTray.toString();
+	}
+	
+	/**
+	 * Test equality of one Tray to another.
+	 */
+	@Override
+	public boolean equals(Object otherTray) {
+		return this.toString().equals(otherTray.toString());
+	}
+	
+	
+	
+	/** 
+	 * Method which makes sure the tray invariant is maintained.
+	 * Invariant: no block overlaps another (2 blocks cannot occupy a single spaces)
+	 * 	
+	 */
+	public boolean isOK() {
+		/*Checks to makes sure there are no overlapping blocks. 
+		 *Creates a 2D array, myBlockLocations to keep track of which positions blocks have
+		 *already claimed. */
+		
+		boolean [][] tempBlockLocations = new boolean[trayHeight][trayWidth];
+
+		for (Block b: myBlocks) {
+			
+			for (int currRow = b.myRow; currRow < b.myRow + b.myHeight; currRow++) {
+				for (int currCol = b.myCol;currCol < b.myCol + b.myWidth;currCol++) {
+					
+					// If there has already been a block marked at currRow,currCol return false
+					if (tempBlockLocations[currRow][currCol] == true) {
+						return false;
+					
+					} 
+					// turn this position into true if no other block has claimed the position.
+					else {
+						tempBlockLocations[currRow][currCol] = true;
+					}
+				}
+			}
+		}
+		return true;
+	}
+	/** 
+	 * Method which returns the number of Blocks in the tray based on myBlocks's size.
+	 */
+	public int numBlocks() {
+		return myBlocks.size();
+	}
+	
+	
+	/**
+	 * Given a row and column, returns a boolean indicating if the position specified
+	 * is occupied by a Block on the current Tray.
+	 * 
+	 * @param row
+	 *                         the row to be checked.
+	 * @param col
+	 *                         the column to be checked.
+	 * @return
+	 *                         true if a Block in myBlocks occupies row,col; else false.
+	 */
+	public boolean positionOccupied(int row, int col) {
+		for (Block block: myBlocks) {
+			if (block.occupiesPosition(row,col)) {
+				return true;
+			}
+		}
+		return false;
+	}
+}

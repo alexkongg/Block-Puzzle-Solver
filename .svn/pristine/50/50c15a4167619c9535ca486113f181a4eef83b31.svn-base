@@ -1,0 +1,456 @@
+
+import java.util.ArrayList;
+import java.util.HashSet;
+
+
+/** 
+ * A class that, given a puzzle file and a goal file,
+ * solves the puzzle in a time-efficient manner.
+ * 
+ * @author cs61bl-db, cs61bl-dc, cs61bl-eq, cs61bl-er
+ *
+ */
+public class Solver {
+	
+	// A TrayConfigTree rooted at the given starting configuration
+	private TrayConfigTree startConfig;
+	
+	// The goal Tray configuration
+	private Tray goalTray;
+	
+	// Print appropriate statements as Solver finds solution if debug modes
+	private boolean debugBlockFull;
+	private boolean debugBlock;
+	private boolean debugTray;
+	private boolean debugTrayFull;
+	private boolean productionMode;
+	
+	// The help print statement to be displayed.
+	private static final String HELP = "\n" +
+									   "For optimal performance, -o or -ocommentate are recommended.\n\n" +
+									   "-O                  run Solver in production mode.\n" +
+									   "-ocommentate        run Solver with comments for block moves.\n" +
+									   "-odebug             show debugging options.\n" +
+								       "-ooptions           generate this message.\n";
+	
+	
+	// Debugging options that the user can input.
+	private static final String DEBUG = "\n" +
+										"-odebug            generate this message.\n" +
+								        "-odebugBlock       display every Block move.\n" +
+								        "-odebugTray        display every Tray comparison to goal Tray. Checks that each Tray's block positioning is valid.\n" +
+								        "-odebugBlockFull   display every Block move and comments.\n" +
+								        "-odebugTrayFull    commentate every Tray operation.\n" +
+								        "-odebugFull        enable all debug options.\n";
+	
+	
+	// A HashSet of Trays used to ensure that if a Tray configuration has 
+	// been seen already, Solver does not revisit the same configuration.
+	// Prevents infinite looping when searching for the solution.
+	private HashSet<Tray> cache;
+
+	/** 
+	 * Handles input options and loads given starting file and
+	 * goal file into Solver.
+	 * @param args
+	 */
+	public static void main (String [ ] args) {
+		Solver solver = new Solver();
+		
+		// Check that the arguments are valid.
+		if (!argumentCheck(args, solver)) {
+			System.exit(0);
+		}
+		
+		// Instantiate the memoization cache.
+		solver.cache = new HashSet<Tray>();
+
+		// Input data into InputSource to be read.
+		InputSource startData, goalData;
+		if (args.length == 3) {
+			startData = new InputSource(args[1]);
+			goalData = new InputSource(args[2]);
+		} else {
+			startData = new InputSource(args[0]);
+			goalData = new InputSource(args[1]);
+		}
+
+
+		// Create goalTray and TrayConfigTree startConfig using
+		// given startData and goalData from argument.
+
+		mainHelper(solver, startData, goalData);
+
+		// Run Solver's function here
+		solver.solve();
+
+	}
+	
+	/**
+	 * The critical component of Solver's desired functionality. 
+	 * 
+	 * Function that finds the solution from startConfig to goalTray, 
+	 * if any, by calling on solveHelper. Then it prints each move leading
+	 * to the solution using printMove.
+	 */
+	
+	public void solve() {
+		TrayConfigTree.TrayConfigNode solution = solveHelper();
+		
+		// If solveHelper returns null, then no solutions exist.
+		if (solution == null) {
+			System.out.println("Solution not found.");
+			System.exit(1);
+			
+		} 
+		
+		else {
+			// nodesOnPath contains the Tray represented by every node from the solution
+			// node to the root of the TrayConfigTree.
+			ArrayList<Tray> nodesOnPath = new ArrayList<Tray>();
+			
+			// Add the solution node's Tray and all of the solution node's
+			// direct ancestors' Trays to nodesOnPath.
+			for (TrayConfigTree.TrayConfigNode nodeOnPath = solution; 
+					nodeOnPath != null; nodeOnPath = nodeOnPath.myParent) {
+				nodesOnPath.add(nodeOnPath.myItem);
+			}
+			
+			// If solution did not require any moves, do not print
+			// any moves.
+			if (nodesOnPath.size() < 2) {
+				System.out.println("Solution found.");
+				return;
+			}
+			
+			// Starting at the root node, print the move that occurred
+			// from the current node and its child node. All nodes in
+			// nodesOnPath lie on the solution path.
+			if (productionMode) {
+				int x = nodesOnPath.size() - 1;
+				int y = x - 1;
+				for (; y >= 0; y--, x--) {
+					Tray.printMove(nodesOnPath.get(x), nodesOnPath.get(y), debugBlockFull);
+				}
+				
+			}
+		}
+		System.out.println("Solution found.");
+	}
+	
+	/**
+	 * Helper function for solve.
+	 * Starting with the initial Tray, tests to see if the current Tray matches the goal configuration.
+	 * If so, then the current Tray is the solution and solve() prints the appropriate comments
+	 * describing moves leading up to the solution. If not, then finds possible moves that can be
+	 * made from current Tray, and repeat the process. If no solution can be found, then return null
+	 * to solve().
+	 * 
+	 * @return
+	 *                      The solution TrayConfigNode if found; else null.
+	 */
+	private TrayConfigTree.TrayConfigNode solveHelper () {
+
+		// toBeOperated is a stack that pops off one node
+		// at a time. Implements a depth-first search.
+		
+		ArrayList<TrayConfigTree.TrayConfigNode> toBeOperated = 
+				new ArrayList<TrayConfigTree.TrayConfigNode>();
+		
+		TrayConfigTree.TrayConfigNode solution = null;
+		
+		// If TrayConfigTree or its initialTray is empty, exit.
+		if (startConfig == null || startConfig.initialTray == null) {
+			System.exit(1);
+		}
+		
+		// Add the root to the stack.
+		toBeOperated.add(startConfig.initialTray);
+		
+		while (!toBeOperated.isEmpty()) {
+			// Pop from top of stack.
+			TrayConfigTree.TrayConfigNode currentNode = toBeOperated.remove(toBeOperated.size() - 1);
+			if (cache.contains(currentNode.myItem)) {
+				continue;
+			}
+			
+			// Check if the current node's myItem satisfies the goal.
+			boolean satisfiesGoal = satisfiesGoal(currentNode.myItem);
+			
+			// Handle different debug outputs.
+			if (debugTray) {
+				System.out.println("Testing equality of current Tray to goal Tray...           " 
+									+ satisfiesGoal);
+			}
+			
+			if (debugBlock && currentNode.myParent != null) {
+				Tray.printMove(currentNode.myParent.myItem, currentNode.myItem, debugBlockFull);
+			}
+			
+			// If goal found, then set the solution to the current node.
+			if (satisfiesGoal) {
+				solution = currentNode;
+				break;
+			}
+			
+			// Else add this Tray to the cache, and contemplate next moves
+			cache.add(currentNode.myItem);
+			
+			// Find next possible moves given the currentNode's Tray.
+			ArrayList<Tray> possibleMoves = currentNode.myItem.findNextConfigurations(debugTrayFull);
+			
+			// Add next possible moves to the top of the stack, effectively
+			// implementing a depth-first search.
+			while (!possibleMoves.isEmpty()) {
+				
+				TrayConfigTree.TrayConfigNode possibleMove = 
+						currentNode.newPossibleMove(possibleMoves.remove(0));
+				
+				boolean haveSeen = cache.contains(possibleMove.myItem);
+				
+				// Handle debug output.
+				if (debugTrayFull) {
+					System.out.println("Checking if Tray configuration has already been seen...    "
+										+ haveSeen);
+				}
+				
+				// If the hypothetical Tray created by a possible move has already
+				// been seen, ignore it. Else, add the Tray to toBeOperated.
+				if (!haveSeen) {
+					if (debugTray) {
+						if (!possibleMove.myItem.isOK()) {
+							System.err.println("Illegal Tray configuration.");
+							System.exit(1);
+						}
+					}
+					
+					// Add to top of stack.
+					toBeOperated.add(possibleMove);
+				}
+			}
+		}
+		return solution;
+	}
+	
+
+	/**
+	 * Helper function for main that loads data from startData and goalData into
+	 * provided solver. 
+	 * 
+	 * @param solver
+	 *                is the Solver into which data is input
+	 * @param startData
+	 *                is the InputSource that contains data for the starting configuration
+	 * @param goalData
+	 *                is the InputSource that contains data for the goal configuration
+	 */
+	private static void mainHelper(Solver solver, InputSource startData, InputSource goalData) {
+		String [] startCoord = startData.readLine().split(" ");
+
+		// Make Trays of width x height from given file
+		int width = Integer.parseInt(startCoord[1]);
+		int height = Integer.parseInt(startCoord[0]);
+		Tray start = new Tray(width, height);
+		Tray goal = new Tray(width, height);
+
+		// Insert blocks from startData and goalData to Trays
+		String startLine, goalLine;
+		while (true) {
+			startLine = startData.readLine ( );
+			goalLine = goalData.readLine( );
+			if (startLine == null && goalLine == null) {
+				break;
+			}
+			if (startLine != null) {
+				start.addBlock(startLine);
+			}
+			if (goalLine != null) {
+				goal.addBlock(goalLine);
+			}
+		}
+
+		// Check that start and goal are valid Trays
+		if (!(start.isOK() && goal.isOK())) {
+			System.err.println("Files contain illegal block positioning.");
+			System.exit(1);
+		}
+
+		// Initiate TrayConfigTree with its root at the given starting configuration
+		solver.startConfig = solver.new TrayConfigTree (start);
+
+		// Set goal
+		solver.goalTray = goal;
+	}
+
+	/**
+	 * Helper function for main that checks main's arguments and also handles
+	 * the various game options starting with "-o"
+	 * 
+	 * @param args
+	 *             is the arguments passed into main()
+	 * @param solver
+	 *             is the Solver used by main
+	 * @return
+	 *             true if arguments are valid; false otherwise.
+	 */
+
+	private static boolean argumentCheck(String [ ] args, Solver solver) {
+		if (args.length == 2) {
+			return true;
+		}
+
+		else if (args.length == 3 || args.length == 1) {
+			String option = args[0];
+			if (option.equalsIgnoreCase("-odebug")) {
+				System.err.println(DEBUG);
+				return false;
+			}
+			else if (option.equalsIgnoreCase("-O")) {
+				if (args.length == 3) {
+					solver.productionMode = true;
+					return true;
+				}
+			}
+			else if (option.equalsIgnoreCase("-ocommentate")) {
+				if (args.length == 3) {
+					solver.productionMode = true;
+					solver.debugBlockFull = true;
+					return true;
+				}
+			}
+			else if (option.equalsIgnoreCase("-ooptions")) {
+				System.out.println(HELP);
+				return false;
+			}
+			else if (option.equalsIgnoreCase("-odebugBlockFull")) {
+				if (args.length == 3) {
+					solver.debugBlockFull = true;
+					solver.debugBlock = true;
+					return true;
+				}
+			}
+			else if (option.equalsIgnoreCase("-odebugBlock")) {
+				if (args.length == 3) {
+					solver.debugBlock = true;
+					return true;
+				}
+			}
+			else if (option.equalsIgnoreCase("-odebugTrayFull")) {
+				if (args.length == 3) {
+					solver.debugTray = true;
+					solver.debugTrayFull = true;
+					return true;
+				}
+			}
+			else if (option.equalsIgnoreCase("-odebugTray")) {
+				if (args.length == 3) {
+					solver.debugTray = true;
+					return true;
+				}
+			}
+			else if (option.equalsIgnoreCase("-odebugFull")) {
+				if (args.length == 3) {
+					solver.debugBlockFull = true;
+					solver.debugBlock = true;
+					solver.debugTrayFull = true;
+					solver.debugTray = true;
+					return true;
+				}
+			}
+
+			else {
+				System.err.println("");
+				System.err.println("Unknown option. Try one of the following:");
+				System.err.println(HELP);
+				return false;
+			}
+		}
+		System.err.println("");
+		System.err.println("Invalid arguments. Follow this format:");
+		System.err.println("java Solver [-oinfo] initialConfigFile goalConfigFile");
+		System.err.println("");
+		System.err.println("Or else try: ");
+		System.err.println("java Solver -ooptions");
+		System.err.println("");
+		return false;
+	}
+
+	/**
+	 * Sub-class within Solver that models a tree. Used to traverse
+	 * possible configurations.
+	 *
+	 */
+	public class TrayConfigTree {
+		
+		// Think of "intialTray" as the equivalent of myRoot.
+		private TrayConfigNode initialTray;
+
+		// Instantiate a new TrayConfigTree
+		public TrayConfigTree (Tray startingConfig) {
+			
+			initialTray = new TrayConfigNode();
+			initialTray.myItem = startingConfig;
+			initialTray.possibleMoves = new ArrayList<TrayConfigNode>();
+		}
+
+		
+		// Think of "TrayConfigNode" as the equivalent of a Node.
+		protected class TrayConfigNode {
+			// The Tray represented by the Node
+			private Tray myItem;
+			
+			// The previous Tray configuration
+			private TrayConfigNode myParent;
+			
+			// Think of "possibleMoves" as the equivalent of myChildren.
+			private ArrayList<TrayConfigNode> possibleMoves;
+			
+			public TrayConfigNode() {
+				possibleMoves = new ArrayList<TrayConfigNode>();
+			}
+			
+			/**
+			 * Adds a child node containing the given Tray to the current node, 
+			 * pointing the child node's myParent to the current node. Return the child node.
+			 * @param possibleMove
+			 *                          Tray which the child node represents
+			 * 
+			 * @return
+			 *                          the new child node containing possibleMove.
+			 */
+			private TrayConfigNode newPossibleMove (Tray possibleMove) {
+				TrayConfigNode move = new TrayConfigNode();
+				move.myItem = possibleMove;
+				move.myParent = this;
+				possibleMoves.add(move);
+				return move;
+			}
+		}
+	}
+	
+
+	
+	
+	/**
+	 * Checks to see if the current Tray matches the goalTray.
+	 * @param current
+	 *                    The current Tray
+	 * @return
+	 *                    true if current Tray satisfies goal; false otherwise.
+	 */
+	public boolean satisfiesGoal(Tray current) {
+		// Returns true if current Tray meets all the specifications of the goal Tray.
+		
+		for (Block goalBlock: goalTray.myBlocks) {
+			if (! current.containsBlock(goalBlock)) {
+				return false;
+			}
+		}
+		
+		return true;
+		
+		
+	}
+	
+}
+
